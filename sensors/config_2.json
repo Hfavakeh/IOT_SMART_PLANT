@@ -1,0 +1,13 @@
+{
+    "device_info": {
+      "device_name": "Raspberry Pi 2",
+      "id": "pi_2",
+      "type": "sensor",
+      "location": "Flat B",
+      "status": "active"
+    },
+    "service_catalog_url": "http://localhost:8080/ServiceCatalog",
+    "device_registration_url": "http://localhost:8080/DeviceCatalog",
+    "publish_interval": 2
+  }
+  

@@ -1,0 +1,28 @@
+{
+  "device": {
+    "device_name": "Raspberry Pi 1",
+    "device_info": {
+      "id": "pi_1",
+      "type": "controller",
+      "location": "Flat A",
+      "status": "active",
+      "thresholds": {
+        "soil_moisture": {
+          "min": 30,
+          "max": 70
+        },
+        "temperature": {
+          "min": 18,
+          "max": 30
+        },
+        "light": {
+          "min": 200,
+          "max": 800
+        }
+      }
+    }
+  },
+  "service_catalog_url": "http://localhost:8080/ServiceCatalog",
+  "device_registration_url": "http://localhost:8080/DeviceCatalog",
+  "publish_interval": 2
+}

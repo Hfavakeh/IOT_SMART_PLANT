@@ -1,0 +1,7 @@
+{ 
+    "service_info": {
+      "service_name": "DeviceCatalog",
+      "service_url": "http://localhost:8080"
+    }
+  }
+  
