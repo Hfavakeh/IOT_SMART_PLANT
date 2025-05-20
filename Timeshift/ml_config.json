@@ -1,0 +1,7 @@
+{
+  "service_registry_url": "http://localhost:8080/ServiceCatalog",
+  "device_name": "Raspberry Pi 1",
+  "channel_id": "2634986",
+  "thingspeak_api_key": "G4G3D6NTU5BIISPD",
+  "forecast_weeks": 12
+}

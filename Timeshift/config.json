@@ -1,0 +1,4 @@
+{
+  "thingspeak_adaptor_url": "http://localhost:8081",
+  "device_catalog_url": "http://localhost:8080/DeviceCatalog"
+}

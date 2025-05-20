@@ -1,0 +1,30 @@
+{
+  "summer": {
+    "temperature": {
+      "min": 24,
+      "max": 27
+    },
+    "humidity": {
+      "min": 40,
+      "max": 60
+    },
+    "light": {
+      "min": 300,
+      "max": 700
+    }
+  },
+  "winter": {
+    "temperature": {
+      "min": 20,
+      "max": 24
+    },
+    "humidity": {
+      "min": 30,
+      "max": 50
+    },
+    "light": {
+      "min": 300,
+      "max": 700
+    }
+  }
+}
