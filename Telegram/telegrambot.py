@@ -10,8 +10,10 @@ import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
 class TestNotifier:
-    def __init__(self, bot, users_file):
+    def __init__(self, bot, alarm_topic, emergency_topic, users_file):
         self.bot = bot
+        self.alarm_topic = alarm_topic
+        self.emergency_topic = emergency_topic
         self.users_file = users_file
 
     def get_chatIDs_by_productID(self, product_ID):
@@ -26,36 +28,59 @@ class TestNotifier:
     
     def notify(self, topic, message):
         try:
-            message_json = json.loads(message.decode())
-            device_id = message_json["device_id"]
-            alert_text = message_json.get("message", "No details provided.")
+            print(f"Received message on topic {topic}: {message.decode()}")
+            if topic == self.alarm_topic:
+                message_json = json.loads(message.decode())
+                device_id = message_json["device_id"]
+                alert_text = message_json.get("message", "No details provided.")
 
-            formatted_message = (
-            f"🚨 *Plant Alert!*\n\n"
-            f"🪴 *Plant ID:* `{device_id}`\n"
-            f"⚠️ *Alert:* {alert_text}"
-            )
+                formatted_message = (
+                f"🚨 *Plant Alert(Future as Predicted)!*\n\n"
+                f"🪴 *Plant ID:* `{device_id}`\n"
+                f"⚠️ *Alert:* {alert_text}"
+                )
 
-            with open(self.users_file, 'r') as file:
-                data = json.load(file)
+                with open(self.users_file, 'r') as file:
+                    data = json.load(file)
 
-            for item in data["data"]:
-                if item["product_ID"] == device_id and item.get("alarm_permission", True):
-                    self.bot.sendMessage(item["chat_ID"], text=formatted_message, parse_mode="Markdown")
+                for item in data["data"]:
+                    if item["product_ID"] == device_id and item.get("alarm_permission", True):
+                        self.bot.sendMessage(item["chat_ID"], text=formatted_message, parse_mode="Markdown")
+            
+            elif topic == self.emergency_topic:
+                message_json = json.loads(message.decode())
+                device_id = message_json["device_id"]
+                alert_text = message_json.get("message", "No details provided.")
+
+                formatted_message = (
+                f"🚨 *Emergency Alert!*\n\n"
+                f"🪴 *Plant ID:* `{device_id}`\n"
+                f"⚠️ *Alert:* {alert_text}"
+                )
+
+                with open(self.users_file, 'r') as file:
+                    data = json.load(file)
+
+                for item in data["data"]:
+                    if item["product_ID"] == device_id and item.get("alarm_permission", True):
+                        self.bot.sendMessage(item["chat_ID"], text=formatted_message, parse_mode="Markdown")
+
         except Exception as e:
             print(f"Error in notify(): {e}")
             
 
 class PlantBot:
-    def __init__(self, token, broker, topic, users_file):
+    def __init__(self, token, broker, alarm_topic, emergency_topic, users_file):
         self.tokenBot = token
         self.bot = telepot.Bot(self.tokenBot)
-        self.topic = topic
+        self.alarm_topic = alarm_topic
+        self.emergency_topic = emergency_topic
         self.users_file = users_file
         MessageLoop(self.bot, {'chat': self.on_chat_message, 'callback_query': self.on_callback_query}).run_as_thread()
-        self.client = MyMQTT("PlantBotClient", broker, 1883, TestNotifier(self.bot, self.users_file))
+        self.client = MyMQTT("PlantBotClient", broker, 1883, TestNotifier(self.bot, self.alarm_topic, self.emergency_topic, self.users_file))
         self.client.start()
-        self.client.mySubscribe("plant_care/alarms")
+        self.client.mySubscribe(self.alarm_topic)
+        self.client.mySubscribe(self.emergency_topic)
         #subscribe to message_broker
         #get broker adress from service catalogue 
                 
@@ -142,14 +167,6 @@ class PlantBot:
                 #send message
                 self.bot.sendMessage(chat_ID, text=message)
             
-            
-
-        else:
-            payload = self.__message.copy()
-            payload['e'][0]['v'] = query_data
-            payload['e'][0]['t'] = time.time()
-            self.client.myPublish(self.topic, payload)
-            self.bot.sendMessage(chat_ID, text=f"Led switched {query_data}")
 
     def is_user_exist(self, chat_id):
         with open(self.users_file, 'r') as file:
@@ -267,8 +284,9 @@ if __name__ == "__main__":
     #topic_publish = configuration['mqttTopic']
     users_path = configuration['users_file']
     BROKER = fetch_service_config("broker_address")
-    TOPIC = fetch_service_config("ALARMS_TOPIC")
-    plantbot = PlantBot(token_bot, BROKER, TOPIC , users_path)
+    Alarm_Topic= fetch_service_config("ALARMS_TOPIC")
+    Emergancy_Topic= fetch_service_config("CONTROL_TOPIC")
+    plantbot = PlantBot(token_bot, BROKER, Alarm_Topic ,Emergancy_Topic, users_path)
 
     while True:
         time.sleep(3)
