@@ -71,11 +71,11 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
     """Callback when a message is received on the subscribed topic."""
     try:
-        print("start")
-        print(msg.payload.decode())
+        #print("start")
+        #print(msg.payload.decode())
         # Decode and parse the sensor data
         sensor_data = json.loads(msg.payload.decode())
-        print(f"Received sensor data: {sensor_data}")
+        #print(f"Received sensor data: {sensor_data}")
 
         # Validate the data against thresholds
         actions = validate_sensor_data(sensor_data)
@@ -112,15 +112,34 @@ def validate_sensor_data(sensor_data):
         for sensor, value in sensor_data.items():
             if sensor in plant_thresholds:
                 if value < plant_thresholds[sensor]["min"]:
-                    actions.append(f"[Plant] {sensor} too low ({value})")
+                    message_dict = {
+                        "device_id": device_id,
+                        "message" : f"[Plant] {sensor} too low ({value})"
+                    }
+                    actions.append(json.dumps(message_dict))
+
                 elif value > plant_thresholds[sensor]["max"]:
-                    actions.append(f"[Plant] {sensor} too high ({value})")
+                    message_dict = {
+                        "device_id": device_id,
+                        "message" : f"[Plant] {sensor} too high ({value})"
+                    }
+                    actions.append(json.dumps(message_dict))
 
             if sensor in home_thresholds:
                 if value < home_thresholds[sensor]["min"]:
-                    actions.append(f"[Home] {sensor} too low ({value})")
+                    message_dict = {
+                        "device_id": device_id,
+                        "message" : f"[Home] {sensor} too low ({value})"
+                    }
+                    actions.append(json.dumps(message_dict))
+
                 elif value > home_thresholds[sensor]["max"]:
-                    actions.append(f"[Home] {sensor} too high ({value})")
+                    message_dict = {
+                        "device_id": device_id,
+                        "message" : f"[Home] {sensor} too high ({value})"
+                    }
+                    actions.append(json.dumps(message_dict))
+                    
 
         return actions
     except Exception as e:
@@ -147,3 +166,4 @@ if __name__ == "__main__":
 
     # Start the MQTT loop
     client.loop_forever()
+    
