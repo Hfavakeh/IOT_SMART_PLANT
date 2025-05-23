@@ -6,6 +6,10 @@ import requests
 import time
 from MyMQTT import *
 import ssl
+import os
+
+from dotenv import load_dotenv
+load_dotenv()
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
@@ -278,7 +282,10 @@ def fetch_service_config(service_name):
 if __name__ == "__main__":
     configuration = json.load(open('settings.json'))
     service_catalogue_URL = configuration['service_catalogue_URL']
-    token_bot = configuration['telegramToken']
+    token_bot = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token_bot:
+        raise EnvironmentError("TELEGRAM_BOT_TOKEN environment variable not set.")
+
     #mqtt_broker = configuration['brokerIP']
     #mqtt_port = configuration['brokerPort']
     #topic_publish = configuration['mqttTopic']
