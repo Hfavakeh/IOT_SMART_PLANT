@@ -49,7 +49,7 @@ class TestNotifier:
 
                 for item in data["data"]:
                     if item["product_ID"] == device_id and item.get("alarm_permission", True):
-                        self.bot.sendMessage(item["chat_ID"], text=formatted_message, parse_mode="Markdown")
+                        self.bot.sendMessage(item["chat_ID"], text=formatted_message)
             
             elif topic == self.emergency_topic:
                 message_json = json.loads(message.decode())

@@ -76,7 +76,11 @@ class TimeShiftPredictor:
                 }
 
             for alarm in alarms:
-                publish.single(alarms_topic, alarm, hostname=broker_address)
+                message = {
+                    "device_id": device_id,
+                    "message": alarm
+                }
+                publish.single(alarms_topic, json.dumps(message), hostname=broker_address)
 
             cherrypy.response.headers["Content-Type"] = "application/json"
             return json.dumps(result).encode('utf-8')
