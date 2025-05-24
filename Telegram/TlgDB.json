@@ -11,6 +11,12 @@
             "product_ID": "Raspberry Pi 1",
             "product_name": "Lotus",
             "alarm_permission": true
+        },
+        {
+            "chat_ID": 67923335,
+            "product_ID": "Raspberry Pi 1",
+            "product_name": "Rose",
+            "alarm_permission": false
         }
     ]
 }

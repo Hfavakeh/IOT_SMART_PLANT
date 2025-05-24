@@ -46,11 +46,13 @@ def fetch_service_config():
     return broker, topic
 
 def send_to_thingspeak(sensor_data):
+    print("Sensor data:", sensor_data)
     payload = {
         "api_key": THINGSPEAK_API_KEY,
         "field1": sensor_data.get("temperature"),
         "field2": sensor_data.get("light"),
         "field3": sensor_data.get("soil_moisture"),
+        "field4": sensor_data.get("device_name"),
     }
 
     try:
@@ -104,10 +106,17 @@ class ThingSpeakAdapterService(object):
         if len(uri) > 0 and uri[0] == 'data':
             channel_id = CONFIG["thingspeak"]["channel_id"]
             api_key =  CONFIG["thingspeak"]["read_api_key"]
+            # device_name=""
+            # if len(uri)>1 and uri[1]:
+            #     device_name = uri[1]
             days = int(params.get("days", 7))
 
             # Fetch data from ThingSpeak
             url = f"https://api.thingspeak.com/channels/{channel_id}/feeds.json"
+            # if device_name:
+            #     url += f"?field4={device_name}"
+            print("Fetching data from ThingSpeak...")
+            print("URL:", url)
             response = requests.get(url, params={
                 "api_key": api_key,
                 "results": days * 1000
@@ -116,12 +125,14 @@ class ThingSpeakAdapterService(object):
 
             # Process feeds
             feeds = response.json().get("feeds", [])
+
             parsed_data = [{
                 "timestamp": e.get("created_at"),
                 "temperature": float(e["field1"]) if e.get("field1") else None,
                 "light": float(e["field2"]) if e.get("field2") else None,
                 "soil_moisture": float(e["field3"]) if e.get("field3") else None,
-            } for e in feeds]
+                "device_name": e["field4"] if e.get("field4") else None,
+            } for e in feeds] #if e.get("field4") == device_name]
 
             # Encode response to bytes
             cherrypy.response.headers['Content-Type'] = 'application/json'
