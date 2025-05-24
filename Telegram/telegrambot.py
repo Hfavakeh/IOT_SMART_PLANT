@@ -39,9 +39,9 @@ class TestNotifier:
                 alert_text = message_json.get("message", "No details provided.")
 
                 formatted_message = (
-                f"🚨 *Plant Alert(Future as Predicted)!*\n\n"
-                f"🪴 *Plant ID:* `{device_id}`\n"
-                f"⚠️ *Alert:* {alert_text}"
+                    f"🚨 *Plant Alert(Future as Predicted)!*\n\n"
+                    f"🪴 *Plant ID:* `{device_id}`\n"
+                    f"⚠️ *Alert:* {alert_text}"
                 )
 
                 with open(self.users_file, 'r') as file:
@@ -57,9 +57,9 @@ class TestNotifier:
                 alert_text = message_json.get("message", "No details provided.")
 
                 formatted_message = (
-                f"🚨 *Emergency Alert!*\n\n"
-                f"🪴 *Plant ID:* `{device_id}`\n"
-                f"⚠️ *Alert:* {alert_text}"
+                    f"🚨 *Emergency Alert!*\n\n"
+                    f"🪴 *Plant ID:* `{device_id}`\n"
+                    f"⚠️ *Alert:* {alert_text}"
                 )
 
                 with open(self.users_file, 'r') as file:
@@ -85,8 +85,6 @@ class PlantBot:
         self.client.start()
         self.client.mySubscribe(self.alarm_topic)
         self.client.mySubscribe(self.emergency_topic)
-        #subscribe to message_broker
-        #get broker adress from service catalogue 
                 
     def on_chat_message(self, msg):
         content_type, chat_type, chat_ID = telepot.glance(msg)
@@ -154,23 +152,35 @@ class PlantBot:
             self.update_alarm_setting(chat_ID, plant_id, state)
 
         elif action == "check_status":
-            #ask service_catalogue to get thingspeak_URL
+            with open(self.users_file, 'r') as file:
+                data = json.load(file)
+
+            plant_name = plant_id
+            for item in data["data"]:
+                if item["chat_ID"] == chat_ID and item["product_ID"] == plant_id:
+                    plant_name = item.get("product_name", plant_id)
+                    break
+
             thingspeak_URL = fetch_service_config("ThingSpeak Adaptor")
-            #ask thingspeak_URL and product_id to get current data
-            response = requests.get(thingspeak_URL + "/data" + "/" + plant_id)
-            if response.status_code == 200:
-                #parse json
-                data = json.loads(response.text)
-                status = data[-1]
-                message = (
-                    f"📅 Timestamp: {status['timestamp']}\n"
-                    f"🌡️ Temperature: {status['temperature']}°C\n"
-                    f"💡 Light: {status['light']} lx\n"
-                    f"🌱 Soil Moisture: {status['soil_moisture']}"
-                ) 
-                #send message
-                self.bot.sendMessage(chat_ID, text=message)
-            
+            try:
+                response = requests.get(thingspeak_URL + "/data" + "/" + plant_id)
+                if response.status_code == 200:
+                    data = response.json()
+                    status = data[-1]
+                    message = (
+                        f"🌿 *{plant_name}*\n\n"
+                        f"📅 Timestamp: {status['timestamp']}\n"
+                        f"🌡️ Temperature: {status['temperature']}°C\n"
+                        f"💡 Light: {status['light']} lx\n"
+                        f"🌱 Soil Moisture: {status['soil_moisture']}%"
+                    )
+
+                    self.bot.sendMessage(chat_ID, text=message, parse_mode="Markdown")
+                else:
+                    self.bot.sendMessage(chat_ID, text="⚠️ Failed to fetch plant data. Please try again later.")
+            except Exception as e:
+                print(f"Error in check_status: {e}")
+                self.bot.sendMessage(chat_ID, text="⚠️ Error while fetching status.")
 
     def is_user_exist(self, chat_id):
         with open(self.users_file, 'r') as file:
@@ -286,14 +296,11 @@ if __name__ == "__main__":
     if not token_bot:
         raise EnvironmentError("TELEGRAM_BOT_TOKEN environment variable not set.")
 
-    #mqtt_broker = configuration['brokerIP']
-    #mqtt_port = configuration['brokerPort']
-    #topic_publish = configuration['mqttTopic']
     users_path = configuration['users_file']
     BROKER = fetch_service_config("broker_address")
-    Alarm_Topic= fetch_service_config("ALARMS_TOPIC")
-    Emergancy_Topic= fetch_service_config("CONTROL_TOPIC")
-    plantbot = PlantBot(token_bot, BROKER, Alarm_Topic ,Emergancy_Topic, users_path)
+    Alarm_Topic = fetch_service_config("ALARMS_TOPIC")
+    Emergancy_Topic = fetch_service_config("CONTROL_TOPIC")
+    plantbot = PlantBot(token_bot, BROKER, Alarm_Topic, Emergancy_Topic, users_path)
 
     while True:
         time.sleep(3)
