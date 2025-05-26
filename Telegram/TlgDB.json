@@ -16,7 +16,7 @@
             "chat_ID": 67923335,
             "product_ID": "Raspberry Pi 1",
             "product_name": "Rose",
-            "alarm_permission": false
+            "alarm_permission": true
         }
     ]
 }
