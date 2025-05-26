@@ -5,16 +5,15 @@ from datetime import datetime
 
 # === Load thermal comfort config for the home ===
 with open("home_environment_config.json", "r") as f:
-    HOME_CONFIG = json.load(f)
+    CONFIG = json.load(f)
 
 
 # URLs for the Service Registry and Device Registration endpoints
-SERVICE_CATALOG_URL = "http://localhost:8080/ServiceCatalog"
+SERVICE_CATALOG_URL = CONFIG["service_catalog_url"]
 
 # Service and Device Registry settings
-SERVICE_INFO = {
-    "service_name": "CONTROL_TOPIC"
-}
+SERVICE_INFO = CONFIG["service_info"]
+
 
 def register_service():
     """Register this microservice with the Service and Device Registry."""
@@ -57,7 +56,7 @@ BROKER, TOPIC , CONTROL_TOPIC = fetch_service_config()
 
 # Sensor thresholds
 # Device info endpoint (update as needed)
-DEVICE_INFO_URL = "http://localhost:8080/DeviceCatalog"
+DEVICE_INFO_URL = CONFIG["device_info_url"]
 
 
 def on_connect(client, userdata, flags, rc):
@@ -105,7 +104,7 @@ def validate_sensor_data(sensor_data):
         plant_thresholds = plant_info.get("device_info", {}).get("thresholds", {})
 
         season = get_current_season()
-        home_thresholds = HOME_CONFIG[season]
+        home_thresholds = CONFIG[season]
 
         actions = []
 
