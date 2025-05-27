@@ -74,14 +74,14 @@ class TestNotifier:
             
 
 class PlantBot:
-    def __init__(self, token, broker, alarm_topic, emergency_topic, users_file):
+    def __init__(self, token, broker, port, alarm_topic, emergency_topic, users_file):
         self.tokenBot = token
         self.bot = telepot.Bot(self.tokenBot)
         self.alarm_topic = alarm_topic
         self.emergency_topic = emergency_topic
         self.users_file = users_file
         MessageLoop(self.bot, {'chat': self.on_chat_message, 'callback_query': self.on_callback_query}).run_as_thread()
-        self.client = MyMQTT("PlantBotClient", broker, 1883, TestNotifier(self.bot, self.alarm_topic, self.emergency_topic, self.users_file))
+        self.client = MyMQTT("PlantBotClient", broker, port, TestNotifier(self.bot, self.alarm_topic, self.emergency_topic, self.users_file))
         self.client.start()
         self.client.mySubscribe(self.alarm_topic)
         self.client.mySubscribe(self.emergency_topic)
@@ -298,9 +298,11 @@ if __name__ == "__main__":
 
     users_path = configuration['users_file']
     BROKER = fetch_service_config("broker_address")
+    PORT = configuration.get('broker_port', 1883)
     Alarm_Topic = fetch_service_config("ALARMS_TOPIC")
     Emergancy_Topic = fetch_service_config("CONTROL_TOPIC")
-    plantbot = PlantBot(token_bot, BROKER, Alarm_Topic, Emergancy_Topic, users_path)
+    plantbot = PlantBot(token_bot, BROKER, PORT, Alarm_Topic, Emergancy_Topic, users_path)
 
     while True:
         time.sleep(3)
+
