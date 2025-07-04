@@ -5,18 +5,6 @@ import json
 import requests
 import paho.mqtt.client as mqtt
 
-# Load config
-with open("config.json", "r") as f:
-    CONFIG = json.load(f)
-
-THINGSPEAK_API_KEY = CONFIG["thingspeak"]["write_api_key"]
-THINGSPEAK_URL = CONFIG["thingspeak"]["url"]
-SERVICE_CATALOG_URL = CONFIG["service_catalog_url"]
-SERVICE_INFO = CONFIG["service_info"]
-
-BROKER = None
-TOPIC = None
-
 def register_service():
     try:
         response = requests.post(SERVICE_CATALOG_URL, json=SERVICE_INFO)
@@ -29,12 +17,11 @@ def register_service():
     except Exception as e:
         print(f"Error registering service: {e}")
 
-def fetch_service_config():
-    response = requests.get(SERVICE_CATALOG_URL)
+def fetch_service_config(service_catalog_url):
+    response = requests.get(service_catalog_url)
     response.raise_for_status()
     services = response.json()
 
-    broker, topic = None, None
     for service in services:
         if service.get("service_name") == "broker_address":
             broker = service.get("service_url")
@@ -42,35 +29,50 @@ def fetch_service_config():
             topic = service.get("service_url")
 
     if not broker or not topic:
-        raise ValueError("Missing 'broker_address' or 'SENSORS_TOPIC'")
+        raise ValueError("Missing broker or topic in service catalog")
     return broker, topic
 
+
 def send_to_thingspeak(sensor_data):
-    print("Sensor data:", sensor_data)
+    device_id = sensor_data.get("device_id")
+    if not device_id:
+        print("Missing device_id in sensor data")
+        return False, {"error": "Missing device_id"}
+
+    # Get device info from Device Catalog
+    try:
+        response = requests.get(f"{CONFIG['device_registration_url']}/{device_id}")
+        response.raise_for_status()
+        device_info = response.json().get("device_info", {})
+        ts_info = device_info.get("thingspeak", {})
+    except Exception as e:
+        print(f"Failed to fetch device info: {e}")
+        return False, {"error": str(e)}
+
     payload = {
-        "api_key": THINGSPEAK_API_KEY,
+        "api_key": ts_info.get("write_api_key"),
         "field1": sensor_data.get("temperature"),
         "field2": sensor_data.get("light"),
-        "field3": sensor_data.get("soil_moisture"),
-        "field4": sensor_data.get("device_name"),
+        "field3": sensor_data.get("soil_moisture")
     }
 
     try:
         response = requests.post(THINGSPEAK_URL, data=payload)
         if response.status_code == 200:
-            print("Data sent to ThingSpeak:", payload)
+            print(f"Data sent for {device_id}: {payload}")
             return True, payload
         else:
-            print(f"ThingSpeak failed with status code: {response.status_code}")
+            print(f"ThingSpeak error {response.status_code}")
             return False, {"status_code": response.status_code}
     except Exception as e:
-        print(f"ThingSpeak error: {e}")
+        print(f"ThingSpeak post error: {e}")
         return False, {"error": str(e)}
+
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("Connected to MQTT broker")
-        client.subscribe(TOPIC)
+        client.subscribe(topic)
     else:
         print(f"Connection failed, code {rc}")
 
@@ -82,15 +84,16 @@ def on_message(client, userdata, msg):
     except Exception as e:
         print(f"Message error: {e}")
 
-def mqtt_loop():
-    global BROKER, TOPIC
-    BROKER, TOPIC = fetch_service_config()
-
+def mqtt_loop(broker, topic):
     client = mqtt.Client()
-    client.on_connect = on_connect
+    client.on_connect = lambda c, u, f, rc: (
+        print("Connected to MQTT broker") if rc == 0 else print(f"Connection failed: {rc}"),
+        c.subscribe(topic) if rc == 0 else None
+    )
     client.on_message = on_message
-    client.connect(BROKER)
+    client.connect(broker)
     client.loop_forever()
+
 
 
 ### === CherryPy Web Server === ###
@@ -104,11 +107,23 @@ class ThingSpeakAdapterService(object):
      try:
         # Check if path is '/data'
         if len(uri) > 0 and uri[0] == 'data':
-            channel_id = CONFIG["thingspeak"]["channel_id"]
-            api_key =  CONFIG["thingspeak"]["read_api_key"]
-            # device_name=""
-            # if len(uri)>1 and uri[1]:
-            #     device_name = uri[1]
+            device_id = uri[1]
+            if not device_id:
+                raise ValueError("Missing device_id parameter")
+
+            # Fetch device info from Device Catalog
+            response = requests.get(f"{CONFIG['device_registration_url']}/{device_id}")
+            response.raise_for_status()
+            device_data = response.json()
+            device_info = device_data.get("device_info", {}) 
+
+            ts_info = device_info.get("thingspeak", {})
+            channel_id = ts_info.get("channel_id")
+            api_key = ts_info.get("read_api_key")
+
+            if not channel_id or not api_key:
+                raise ValueError("ThingSpeak channel_id or read_api_key not found for device")
+
             days = int(params.get("days", 7))
 
             # Fetch data from ThingSpeak
@@ -131,9 +146,7 @@ class ThingSpeakAdapterService(object):
                 "temperature": float(e["field1"]) if e.get("field1") else None,
                 "light": float(e["field2"]) if e.get("field2") else None,
                 "soil_moisture": float(e["field3"]) if e.get("field3") else None,
-                "device_name": e["field4"] if e.get("field4") else None,
-            } for e in feeds] #if e.get("field4") == device_name]
-
+            } for e in feeds] 
             # Encode response to bytes
             cherrypy.response.headers['Content-Type'] = 'application/json'
             return json.dumps(parsed_data).encode('utf-8') 
@@ -152,42 +165,36 @@ class ThingSpeakAdapterService(object):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         return json.dumps({"error": str(e)}).encode('utf-8')  
 
-     except Exception as e:
-        cherrypy.response.status = 500
-        return json.dumps({"error": str(e)})
 
-    def POST(self, *uri, **params):
-        return {"status": "Service is running"}
-    
-    def PUT(self, *uri, **params):
-        return {"status": "Service is running"}
 
-    def DELETE(self, *uri, **params):
-        return {"status": "Service is running"}
 
 if __name__ == "__main__":
+
+    with open("config.json", "r") as f:
+        CONFIG = json.load(f)
+
+    SERVICE_CATALOG_URL = CONFIG["service_catalog_url"]
+    DEVICE_CATALOG_URL = CONFIG["device_registration_url"]
+    SERVICE_INFO = CONFIG["service_info"]
+    THINGSPEAK_URL = CONFIG["thingspeak"]["write_url"]
     register_service()
 
-    # Start MQTT client in background thread
-    mqtt_thread = threading.Thread(target=mqtt_loop)
+    broker, topic = fetch_service_config(SERVICE_CATALOG_URL)
+
+    mqtt_thread = threading.Thread(target=mqtt_loop, args=(broker, topic))
     mqtt_thread.daemon = True
     mqtt_thread.start()
 
-    # Start CherryPy REST server
     conf = {
-        '/': {  
+        '/': {
             'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
-            'tools.sessions.on': False,
-            # 'cors.expose.on': False,
+            'tools.sessions.on': False
         }
     }
-    # cherrypy.quickstart(ThingSpeakAdapterService())
-    
+
     cherrypy.tree.mount(ThingSpeakAdapterService(), '/', conf)
-    cherrypy.config.update({'server.socket_host': os.environ.get('IP_ADDRESS','0.0.0.0')})
-    # cherrypy.config.update({'server.socket_port': int(os.environ.get('IP_PORT','8081'))})
+    cherrypy.config.update({'server.socket_host': os.environ.get('IP_ADDRESS', '0.0.0.0')})
     cherrypy.config.update({'server.socket_port': int('8081')})
     cherrypy.engine.start()
-    #while True:
-    #    time.sleep(1)
     cherrypy.engine.block()
+

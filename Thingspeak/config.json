@@ -1,21 +1,12 @@
 {
-  "thingspeak": {
-      "read_api_key": "G4G3D6NTU5BIISPD",
-      "write_api_key": "OBBXZTT926E4XNI4",
-      "channel_id": "2634986",
-      "url": "https://api.thingspeak.com/update"
-  },
+  "device_registration_url": "http://localhost:8080/DeviceCatalog",
   "service_catalog_url": "http://localhost:8080/ServiceCatalog",
   "service_info": {
       "service_name": "ThingSpeak Adaptor",
       "service_url": "http://localhost:8081"
   },
-
-  "devices": {
-    "pi_1": {
-      "channel_id": "2634986",
-      "write_api_key": "OBBXZTT926E4XNI4",
-      "read_api_key": "G4G3D6NTU5BIISPD"
-    }
+  "thingspeak": {
+    "write_url": "https://api.thingspeak.com/update"
   }
-}
+
+  }
