@@ -12,14 +12,31 @@ with open("config.json", "r") as f:
 
 THINGSPEAK_ADAPTOR_URL = CONFIG["thingspeak_adaptor_url"]
 DEVICE_CATALOG_URL = CONFIG["device_catalog_url"]
-device_id = CONFIG["device_name"]
-weeks = CONFIG.get("weeks", 2)
-alarms_topic = CONFIG.get("ALARMS_TOPIC", "plant_care/alarms")
-broker_address = CONFIG.get("broker_address", "localhost")
+weeks = int(CONFIG.get("weeks"))
+alarms_topic = CONFIG.get("ALARMS_TOPIC")
+broker_address = CONFIG.get("broker_address")
+
+results_by_device = {}
+
+# Fetch all registered devices from the catalog
+device_list_resp = requests.get(DEVICE_CATALOG_URL)
+device_list_resp.raise_for_status()
+device_list = device_list_resp.json()
+
+# Validate and iterate over devices
+for entry in device_list:
+    device_info = entry.get("device_info", {})
+    device_id = device_info.get("device_id")
+
+    if not device_id:
+        continue  
+
+    print(f"\n[INFO] Processing device: {device_id}")
+
 
 try:
     print("[INFO] Fetching sensor data...")
-    response = requests.get(f"{THINGSPEAK_ADAPTOR_URL}/data/Raspberry Pi 1", params={"days": weeks * 7})
+    response = requests.get(f"{THINGSPEAK_ADAPTOR_URL}/data/{device_id}", params={"days": weeks * 7})
     response.raise_for_status()
     data = response.json()
 
@@ -53,7 +70,9 @@ try:
         future_days = np.array([[X[-1][0] + i] for i in range(1, 8)])
         predictions = model.predict(future_days)
 
+
         pred_list = []
+
         for day_offset, pred in enumerate(predictions, start=1):
             status = "normal"
             if pred < thresholds[variable]["min"]:
@@ -81,6 +100,7 @@ try:
             "threshold_max": thresholds[variable]["max"],
             "predictions": pred_list
         }
+        results_by_device[device_id] = result
 
     print("[INFO] Sending alarms via MQTT...")
     for alarm in alarms:
@@ -92,3 +112,7 @@ try:
 
 except Exception as e:
     print(f"[ERROR] {str(e)}")
+
+
+    print("\n=== All Device Predictions ===")
+print(json.dumps(results_by_device, indent=2))

@@ -3,18 +3,6 @@ import json
 import requests
 from datetime import datetime
 
-# === Load thermal comfort config for the home ===
-with open("home_environment_config.json", "r") as f:
-    CONFIG = json.load(f)
-
-
-# URLs for the Service Registry and Device Registration endpoints
-SERVICE_CATALOG_URL = CONFIG["service_catalog_url"]
-
-# Service and Device Registry settings
-SERVICE_INFO = CONFIG["service_info"]
-
-
 def register_service():
     """Register this microservice with the Service and Device Registry."""
     try:
@@ -51,12 +39,6 @@ def fetch_service_config():
                          "'broker_address' and/or 'mqtt_topic'")
     return broker, topic, control_topic
 
-# Retrieve the configuration from the service registry.
-BROKER, TOPIC , CONTROL_TOPIC = fetch_service_config()
-
-# Sensor thresholds
-# Device info endpoint (update as needed)
-DEVICE_INFO_URL = CONFIG["device_info_url"]
 
 
 def on_connect(client, userdata, flags, rc):
@@ -92,7 +74,7 @@ def get_current_season():
 
 def validate_sensor_data(sensor_data):
     """Fetch thresholds for the device and validate sensor data."""
-    device_id = sensor_data.get("device_name")
+    device_id = sensor_data.get("device_id")
     if not device_id:
         print("No device_id found in sensor data.")
 
@@ -146,23 +128,42 @@ def validate_sensor_data(sensor_data):
         return []
 
 def publish_control_messages(actions):
+
     """Publish control messages to the MQTT broker."""
     for action in actions:
         client.publish(CONTROL_TOPIC, action)
         print(f"Published control message: {action}")
 
 if __name__ == "__main__":
+ 
+    # === Load thermal comfort config for the home ===
+ with open("home_environment_config.json", "r") as f:
+    CONFIG = json.load(f)
 
-    register_service()
+
+# URLs for the Service Registry and Device Registration endpoints
+SERVICE_CATALOG_URL = CONFIG["service_catalog_url"]
+
+# Service and Device Registry settings
+SERVICE_INFO = CONFIG["service_info"]
+
+# Sensor thresholds
+# Device info endpoint (update as needed)
+DEVICE_INFO_URL = CONFIG["device_info_url"]
+
+# Retrieve the configuration from the service registry.
+BROKER, TOPIC , CONTROL_TOPIC = fetch_service_config()
+
+register_service()
 
     # Initialize MQTT client
-    client = mqtt.Client()
-    client.on_connect = on_connect
-    client.on_message = on_message
+client = mqtt.Client()
+client.on_connect = on_connect
+client.on_message = on_message
 
     # Connect to the MQTT broker
-    client.connect(BROKER)
+client.connect(BROKER)
 
     # Start the MQTT loop
-    client.loop_forever()
+client.loop_forever()
     
