@@ -8,6 +8,7 @@ from MyMQTT import *
 import ssl
 import os
 
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -35,7 +36,7 @@ class TestNotifier:
             print(f"Received message on topic {topic}: {message.decode()}")
             if topic == self.alarm_topic:
                 message_json = json.loads(message.decode())
-                device_id = message_json["device_id"]
+                device_id = message_json["device_id"].lower()
                 alert_text = message_json.get("message", "No details provided.")
 
                 formatted_message = (
@@ -48,7 +49,7 @@ class TestNotifier:
                     data = json.load(file)
 
                 for item in data["data"]:
-                    if item["product_ID"] == device_id and item.get("alarm_permission", True):
+                    if item["product_ID"].lower() == device_id and item.get("alarm_permission", True):
                         self.bot.sendMessage(item["chat_ID"], text=formatted_message)
             
             elif topic == self.emergency_topic:
@@ -74,14 +75,14 @@ class TestNotifier:
             
 
 class PlantBot:
-    def __init__(self, token, broker, port, alarm_topic, emergency_topic, users_file):
+    def __init__(self, token, broker, alarm_topic, emergency_topic, users_file):
         self.tokenBot = token
         self.bot = telepot.Bot(self.tokenBot)
         self.alarm_topic = alarm_topic
         self.emergency_topic = emergency_topic
-        self.users_file = users_file
+        self.users_file = os.path.abspath(users_file)
         MessageLoop(self.bot, {'chat': self.on_chat_message, 'callback_query': self.on_callback_query}).run_as_thread()
-        self.client = MyMQTT("PlantBotClient", broker, port, TestNotifier(self.bot, self.alarm_topic, self.emergency_topic, self.users_file))
+        self.client = MyMQTT("PlantBotClient", broker, 1883, TestNotifier(self.bot, self.alarm_topic, self.emergency_topic, self.users_file))
         self.client.start()
         self.client.mySubscribe(self.alarm_topic)
         self.client.mySubscribe(self.emergency_topic)
@@ -102,15 +103,15 @@ class PlantBot:
         if message == "/start":
             if self.is_user_exist(chat_ID):
                 self.get_products(chat_ID)
-                self.bot.sendMessage(chat_ID, text="Choose an option from the keyboard below or send a Product ID and Name to register your plant:\n\nExample: `Raspberry Pi 1, Aloe Vera`", reply_markup=main_menu)
+                self.bot.sendMessage(chat_ID, text="Choose an option from the keyboard below or send a Product ID and Name to register your plant:\n\nExample: `pi_1, Aloe Vera`", reply_markup=main_menu)
             else:
-                self.bot.sendMessage(chat_ID, text="🌱 Welcome to MyPlant Bot!\n\nSend a Product ID and Name to register your plant:\n\nExample: `Raspberry Pi 1, Aloe Vera`", reply_markup=main_menu)
+                self.bot.sendMessage(chat_ID, text="🌱 Welcome to MyPlant Bot!\n\nSend a Product ID and Name to register your plant:\n\nExample: `pi_1, Aloe Vera`", reply_markup=main_menu)
 
         elif message == "🌿 My Plants":
             self.get_products(chat_ID)
 
         elif message == "➕ Add Plant":
-            self.bot.sendMessage(chat_ID, text="Send a Product ID and Name to register your plant:\n\nExample: `Raspberry Pi 1, Aloe Vera`")
+            self.bot.sendMessage(chat_ID, text="Send a Product ID and Name to register your plant:\n\nExample: `pi_1, Aloe Vera`")
 
         elif message == "📩 Contact Developer":
             dev_button = InlineKeyboardMarkup(inline_keyboard=[
@@ -125,9 +126,11 @@ class PlantBot:
                     raise ValueError("Incorrect format")
 
                 plant_id, plant_name = parts
-                self.add_plant(chat_ID, plant_id.strip(), plant_name.strip())
+                plant_id = plant_id.strip().lower()
+                plant_name = plant_name.strip()
+                self.add_plant(chat_ID, plant_id, plant_name)
             except ValueError:
-                self.bot.sendMessage(chat_ID, text="⚠️ Incorrect format! Please use the format: `Raspberry Pi 1, MyPlant` with a comma and space separating the ID and name.")
+                self.bot.sendMessage(chat_ID, text="⚠️ Incorrect format! Please use the format: `pi_1, MyPlant` with a comma and space separating the ID and name.")
             except Exception as e:
                 print(f"Error processing the plant add message: {e}")
                 self.bot.sendMessage(chat_ID, text="⚠️ Something went wrong. Please try again.")
@@ -137,6 +140,8 @@ class PlantBot:
     def on_callback_query(self, msg):
         query_ID, chat_ID, query_data = telepot.glance(msg, flavor='callback_query')
         action, plant_id = query_data.split('|')
+        plant_id = plant_id.lower()
+        
 
         if action == "delete":
             self.delete_plant(chat_ID, plant_id)
@@ -188,28 +193,43 @@ class PlantBot:
         return any(entry["chat_ID"] == chat_id for entry in data["data"])
 
     def add_plant(self, chat_ID, plant_id, plant_name):
-        with open(self.users_file, 'r') as file:
-            data = json.load(file)
+        try:
+            # Load or initialize user data
+            if os.path.exists(self.users_file):
+                with open(self.users_file, 'r') as file:
+                    try:
+                        data = json.load(file)
+                        if "data" not in data or not isinstance(data["data"], list):
+                            data = {"data": []}
+                    except json.JSONDecodeError:
+                        data = {"data": []}
+            else:
+                data = {"data": []}
 
-        for item in data["data"]:
-            if item["chat_ID"] == chat_ID and item["product_ID"] == plant_id:
-                item["product_name"] = plant_name
-                with open(self.users_file, 'w') as file:
-                    json.dump(data, file, indent=4)
-                self.bot.sendMessage(chat_ID, text=f"✏️ Plant name updated to **{plant_name}** (ID: {plant_id})", parse_mode="Markdown")
-                return
+            # Check if plant already registered
+            for item in data["data"]:
+                if item["chat_ID"] == chat_ID and item["product_ID"] == plant_id:
+                    item["product_name"] = plant_name  # Update name if changed
+                    break
+            else:
+                # Add new plant
+                data["data"].append({
+                    "chat_ID": chat_ID,
+                    "product_ID": plant_id,
+                    "product_name": plant_name,
+                    "alarm_permission": True
+                })
 
-        data["data"].append({
-            "chat_ID": chat_ID,
-            "product_ID": plant_id,
-            "product_name": plant_name,
-            "alarm_permission": True
-        })
+            # Save updated file
+            with open(self.users_file, 'w') as file:
+                json.dump(data, file, indent=4)
 
-        with open(self.users_file, 'w') as file:
-            json.dump(data, file, indent=4)
+            self.bot.sendMessage(chat_ID, text=f"✅ Plant **{plant_name}** (ID: `{plant_id}`) added successfully!", parse_mode="Markdown")
 
-        self.bot.sendMessage(chat_ID, text=f"✅ Plant **{plant_name}** (ID: {plant_id}) added successfully!", parse_mode="Markdown")
+        except Exception as e:
+            print(f"[ERROR] add_plant failed: {e}")
+            self.bot.sendMessage(chat_ID, text="⚠️ Failed to register plant. Please try again.")
+
 
     def delete_plant(self, chat_ID, plant_id):
         with open(self.users_file, 'r') as file:
@@ -232,7 +252,7 @@ class PlantBot:
         user_plants = [item for item in data["data"] if item["chat_ID"] == chat_ID]
 
         if not user_plants:
-            self.bot.sendMessage(chat_ID, text="🌱 You have no plants registered.\n\nSend a Product ID and Name to add one:\nExample: `Raspberry Pi 1, Aloe Vera`")
+            self.bot.sendMessage(chat_ID, text="🌱 You have no plants registered.\n\nSend a Product ID and Name to add one:\nExample: `pi_1, Aloe Vera`")
             return
 
         for item in user_plants:
@@ -292,17 +312,16 @@ def fetch_service_config(service_name):
 if __name__ == "__main__":
     configuration = json.load(open('settings.json'))
     service_catalogue_URL = configuration['service_catalogue_URL']
+    service_catalogue_URL = os.getenv("service_catalog", service_catalogue_URL)+"/ServiceCatalog"
     token_bot = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token_bot:
         raise EnvironmentError("TELEGRAM_BOT_TOKEN environment variable not set.")
 
     users_path = configuration['users_file']
     BROKER = fetch_service_config("broker_address")
-    PORT = configuration.get('broker_port', 1883)
     Alarm_Topic = fetch_service_config("ALARMS_TOPIC")
     Emergancy_Topic = fetch_service_config("CONTROL_TOPIC")
-    plantbot = PlantBot(token_bot, BROKER, PORT, Alarm_Topic, Emergancy_Topic, users_path)
+    plantbot = PlantBot(token_bot, BROKER, Alarm_Topic, Emergancy_Topic, users_path)
 
     while True:
         time.sleep(3)
-

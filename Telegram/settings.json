@@ -1,6 +1,6 @@
 {
   "telegramToken": "",
   "users_file":"TlgDB.json",
-  "service_catalogue_URL":"http://localhost:8080/ServiceCatalog",
-  "broker_port": 1883
+  "service_catalogue_URL":"http://isp_registry:8080"
+  
 }
