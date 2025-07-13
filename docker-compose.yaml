@@ -1,0 +1,105 @@
+version: '3.1'
+services:
+
+  isp_mosquitto:
+    build:
+      context: ./isp_mosquitto
+    ports:
+      - "1883:1883"   # MQTT port
+      - "9001:9001"   # WebSocket port (optional)
+    restart: always
+
+  isp_registry:
+    build:
+      context: ./registry
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      BROKER_ADDRESS: isp_mosquitto
+      IP_PORT: 8080
+      IP_ADDRESS: 0.0.0.0
+      environment: RUNNING
+    depends_on: 
+      - isp_mosquitto
+  isp_sensors:
+    build:
+      context: ./sensors
+    restart: always
+    environment:
+      service_catalog: http://isp_registry:8080
+      IP_ADDRESS: 0.0.0.0
+      environment: RUNNING
+    depends_on:
+      - isp_registry
+      - isp_mosquitto
+      
+  isp_sensors2:
+    build:
+      context: ./sensors
+    restart: always
+    environment:
+      config_file: config2.json
+      service_catalog: http://isp_registry:8080
+      IP_ADDRESS: 0.0.0.0
+      environment: RUNNING
+    depends_on:
+      - isp_registry
+      - isp_mosquitto
+
+  isp_sensor_control:
+    build:
+      context: ./sensor_control
+    restart: always
+    environment:
+      service_catalog: http://isp_registry:8080
+      IP_ADDRESS: 0.0.0.0
+      environment: RUNNING
+    depends_on:
+      - isp_registry
+      - isp_mosquitto
+
+  isp_thingspeak:
+    build:
+      context: ./thingspeak
+    ports:
+      - "8081:8081"
+    restart: always
+    environment:
+      service_catalog: http://isp_registry:8080
+      IP_ADDRESS: 0.0.0.0
+      environment: RUNNING
+    depends_on:
+      - isp_registry
+      - isp_mosquitto
+
+  isp_timeshift:
+    build:
+      context: ./timeshift
+    restart: always
+    environment:
+      wait_seconds: 3600
+      thingspeak_adaptor_url: http://isp_thingspeak:8081
+      service_catalog: http://isp_registry:8080
+      IP_ADDRESS: 0.0.0.0
+      environment: RUNNING
+      broker_address: isp_mosquitto
+    depends_on:
+      - isp_registry
+      - isp_mosquitto
+
+  isp_telegram:
+    build:
+      context: ./telegram
+    restart: always
+    environment:
+      TELEGRAM_BOT_TOKEN: 7827437398:AAEJlTJxckpNwV9CtzjPmrf5mAmh1RA81DM
+      wait_seconds: 3600
+      thingspeak_adaptor_url: http://isp_thingspeak:8081
+      service_catalog: http://isp_registry:8080
+      IP_ADDRESS: 0.0.0.0
+      environment: RUNNING
+      broker_address: isp_mosquitto
+    depends_on:
+      - isp_registry
+      - isp_mosquitto
