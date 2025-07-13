@@ -180,6 +180,7 @@ class DeviceCatalog():
 
     def PUT(self, *uri):
         data_to_update = cherrypy.request.body.read()
+        print(data_to_update)
         converted_data = json.loads(data_to_update)
         device_name = converted_data.get('device_name')
         device_info = converted_data.get('device_info')
@@ -453,6 +454,7 @@ if __name__ == '__main__':
     cherrypy.tree.mount(TelegramUsers(), '/' + type(TelegramUsers()).__name__, conf)
     cherrypy.tree.mount(ServiceCatalog(), '/' + type(ServiceCatalog()).__name__, conf)
     cherrypy.tree.mount(DeviceCatalog(), '/' + type(DeviceCatalog()).__name__, conf)
+    print("current server addresss: ",os.environ['IP_ADDRESS'],os.environ['IP_ADDRESS'])
     cherrypy.config.update({'server.socket_host': os.environ['IP_ADDRESS']})
     cherrypy.config.update({'server.socket_port': int(os.environ['IP_PORT'])})
     cherrypy.engine.start()
