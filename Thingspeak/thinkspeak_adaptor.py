@@ -5,6 +5,42 @@ import json
 import requests
 import paho.mqtt.client as mqtt
 
+SERVICE_CATALOG_URL = ""
+# DEVICE_CATALOG_URL = None
+# SERVICE_INFO = None
+# THINGSPEAK_URL = None
+# THINGSPEAK_TOCKEN=None
+
+def create_thingspeak_channel(user_api_key, name): 
+    payload = {
+        'api_key': user_api_key,
+        'name': name,
+        'description': 'Created via Python',
+        'field1': "Temperature",
+        'field2': "Light",
+        'field3': "Moisture",
+        'public_flag': False
+    }
+    response = requests.post('https://api.thingspeak.com/channels.json', data=payload)    
+    channel_id,api_keys = response.json().get('id'),response.json().get('api_keys', [])
+    return channel_id,api_keys
+
+def channel_exists(api_key, target_name):
+    url = f"https://api.thingspeak.com/channels.json?api_key={api_key}"
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        print("Failed to retrieve channels:", response.status_code)
+        return False
+
+    channels = response.json()
+
+    for channel in channels:
+        if channel.get("name") == target_name:
+            return True,channel  # Found the channel
+
+    return False,None  # Not found
+
 def register_service():
     try:
         response = requests.post(SERVICE_CATALOG_URL, json=SERVICE_INFO)
@@ -34,17 +70,44 @@ def fetch_service_config(service_catalog_url):
 
 
 def send_to_thingspeak(sensor_data):
+
     device_id = sensor_data.get("device_id")
     if not device_id:
         print("Missing device_id in sensor data")
         return False, {"error": "Missing device_id"}
-
+    api_keys=""
+    channel_id=None
+    channel_exist,chnnel_data=channel_exists(THINGSPEAK_TOCKEN,device_id)
+    if channel_exist==False:
+        channel_id,api_keys=create_thingspeak_channel(THINGSPEAK_TOCKEN,device_id)
+    else:
+        channel_id=chnnel_data.get("id")
+        api_keys=chnnel_data.get("api_keys", [])
+        if len(api_keys) < 2:
+            print(f"Channel {device_id} does not have enough API keys.")
+            return False, {"error": "Insufficient API keys for channel"}
     # Get device info from Device Catalog
     try:
-        response = requests.get(f"{CONFIG['device_registration_url']}/{device_id}")
+        response = requests.get(DEVICE_CATALOG_URL+f"/{device_id}")
+        print(f"Fetching device info for {device_id} from Device Catalog")
         response.raise_for_status()
         device_info = response.json().get("device_info", {})
         ts_info = device_info.get("thingspeak", {})
+        if not ts_info:
+            print(api_keys)
+            thing_speak_config=json.dumps({"channel_id": channel_id, "write_api_key": api_keys[0].get("api_key"), "read_api_key": api_keys[1].get("api_key")})
+            # Update device info in Device Catalog with new ThingSpeak config
+            print(type(thing_speak_config))
+            device_info["thingspeak"]= json.loads(thing_speak_config)
+            update_payload = {
+                "device_name": device_id,
+                "device_info": device_info
+            }
+            print(json.dumps(update_payload))
+            update_response = requests.put(DEVICE_CATALOG_URL, json=update_payload)
+            update_response.raise_for_status()
+            ts_info = json.loads(thing_speak_config)
+        
     except Exception as e:
         print(f"Failed to fetch device info: {e}")
         return False, {"error": str(e)}
@@ -88,7 +151,7 @@ def mqtt_loop(broker, topic):
     client = mqtt.Client()
     client.on_connect = lambda c, u, f, rc: (
         print("Connected to MQTT broker") if rc == 0 else print(f"Connection failed: {rc}"),
-        c.subscribe(topic) if rc == 0 else None
+        c.subscribe(topic+"/#") if rc == 0 else None
     )
     client.on_message = on_message
     client.connect(broker)
@@ -112,7 +175,7 @@ class ThingSpeakAdapterService(object):
                 raise ValueError("Missing device_id parameter")
 
             # Fetch device info from Device Catalog
-            response = requests.get(f"{CONFIG['device_registration_url']}/{device_id}")
+            response = requests.get(DEVICE_CATALOG_URL+f"/{device_id}")
             response.raise_for_status()
             device_data = response.json()
             device_info = device_data.get("device_info", {}) 
@@ -175,8 +238,11 @@ if __name__ == "__main__":
 
     SERVICE_CATALOG_URL = CONFIG["service_catalog_url"]
     DEVICE_CATALOG_URL = CONFIG["device_registration_url"]
+    SERVICE_CATALOG_URL=os.environ.get("service_catalog", CONFIG["service_catalog_url"])+"/ServiceCatalog"
+    DEVICE_CATALOG_URL= os.environ.get("service_catalog", CONFIG["device_registration_url"])+"/DeviceCatalog"
     SERVICE_INFO = CONFIG["service_info"]
     THINGSPEAK_URL = CONFIG["thingspeak"]["write_url"]
+    THINGSPEAK_TOCKEN=CONFIG["thingspeak"]["token"]
     register_service()
 
     broker, topic = fetch_service_config(SERVICE_CATALOG_URL)

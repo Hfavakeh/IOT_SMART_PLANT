@@ -1,11 +1,13 @@
 {
-  "device_registration_url": "http://localhost:8080/DeviceCatalog",
-  "service_catalog_url": "http://localhost:8080/ServiceCatalog",
+  "thing_speak_token":"OXG178YJWYCY1RFS",
+  "device_registration_url": "${service_catalog}",
+  "service_catalog_url": "${service_catalog}",
   "service_info": {
       "service_name": "ThingSpeak Adaptor",
       "service_url": "http://localhost:8081"
   },
   "thingspeak": {
+    "token":"OXG178YJWYCY1RFS",
     "write_url": "https://api.thingspeak.com/update"
   }
 
