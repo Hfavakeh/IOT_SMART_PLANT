@@ -1,28 +1,34 @@
-{
+{ 
   "device": {
-    "device_name": "Raspberry Pi 2",
-    "device_info": {
-      "id": "pi_2",
+  "device_name": "Raspberry Pi 2",  
+  "device_info": {
+      "device_id": "pi_2",
       "type": "controller",
       "location": "Flat A",
       "status": "active",
       "thresholds": {
         "soil_moisture": {
-          "min": 30,
-          "max": 70
+          "min": 40,
+          "max": 50
         },
         "temperature": {
-          "min": 18,
-          "max": 30
+          "min": 20,
+          "max": 28
         },
         "light": {
           "min": 200,
-          "max": 800
+          "max": 500
         }
-      }
-    }
-  },
-  "service_catalog_url": "http://localhost:8080/ServiceCatalog",
-  "device_registration_url": "http://localhost:8080/DeviceCatalog",
+      },
+    "thingspeak": {
+    "channel_id": "2973323",
+    "write_api_key": "QS2RGYXOYZ1V2FDL",
+    "read_api_key": "8LD2BO5S4GERR3DJ"
+  }
+    },
+  
+  "service_catalog_url": "${service_catalog}",
+  "device_registration_url": "${service_catalog}",
   "publish_interval": 2
+}
 }

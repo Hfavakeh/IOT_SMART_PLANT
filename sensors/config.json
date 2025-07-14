@@ -1,8 +1,8 @@
-{
+{ 
   "device": {
-    "device_name": "Raspberry Pi 1",
-    "device_info": {
-      "id": "pi_1",
+  "device_name": "Raspberry Pi 1",  
+  "device_info": {
+      "device_id": "pi_1",
       "type": "controller",
       "location": "Flat A",
       "status": "active",
@@ -19,10 +19,15 @@
           "min": 200,
           "max": 800
         }
-      }
-    }
-  },
-  "service_catalog_url": "http://localhost:8080/ServiceCatalog",
-  "device_registration_url": "http://localhost:8080/DeviceCatalog",
+      },
+    "thingspeak": {
+    "channel_id": "2634986",
+    "write_api_key": "OBBXZTT926E4XNI4",
+    "read_api_key": "G4G3D6NTU5BIISPD"
+  }
+    },
+  "service_catalog_url": "${service_catalog}",
+  "device_registration_url": "${service_catalog}",
   "publish_interval": 2
+}
 }

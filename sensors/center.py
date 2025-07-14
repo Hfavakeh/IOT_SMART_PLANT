@@ -4,32 +4,78 @@ import json
 import requests
 import paho.mqtt.publish as publish
 import sys
+import os
 
+class DeviceInfo:
 
-config_path = sys.argv[1] if len(sys.argv) > 1 else "config.json"
-with open(config_path, "r") as config_file:
-    config = json.load(config_file)
+    def simulate_temperature_sensor(self):
+        return round(random.uniform(15.0, 30.0), 2) #various temperatures in Celsius
 
+    def simulate_soil_moisture_sensor(self):
+        return round(random.uniform(30.0, 70.0), 2)
 
-# Device information (dynamic from config)
-DEVICE_INFO = {
-    "device_name": config["device"]["device_name"],  
-    "device_info": {
-        "id": config["device"]["device_info"]["id"],  
-        "type": config["device"]["device_info"]["type"],
-        "location": config["device"]["device_info"]["location"],
-        "status": config["device"]["device_info"]["status"],
-        "registration_date": time.strftime("%Y-%m-%d %H:%M:%S"), 
-        "thresholds": config["device"]["device_info"]["thresholds"]  
-    },
+    def simulate_light_sensor(self):
+        return round(random.uniform(100.0, 1000.0), 2)
 
-    "last_seen": time.time()
-}
+    def read_sensors(self):
+        return {
+            "temperature": self.simulate_temperature_sensor(),
+            "soil_moisture": self.simulate_soil_moisture_sensor(),
+            "light": self.simulate_light_sensor(),
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+        }
 
-# URLs
-SERVICE_CATALOG_URL = config["service_catalog_url"]
-DEVICE_REGISTRATION_URL = config["device_registration_url"]
-PUBLISH_INTERVAL = config.get("publish_interval", 2)
+    def send_sensor_data(self):
+        while True:
+            sensor_data = self.read_sensors()
+            sensor_data["device_id"] = DEVICE_INFO["device_id"]
+            payload = json.dumps(sensor_data)
+            try:
+                print("connecting to MQTT broker at", BROKER)
+                publish.single(TOPIC+'/'+sensor_data["device_id"], payload, hostname=BROKER)
+                print("Published sensor data:", payload," on topic ", TOPIC+'/'+sensor_data["device_id"])
+            except Exception as e:
+                print("Failed to publish sensor data:", e)
+            time.sleep(PUBLISH_INTERVAL)
+
+    def register_device(self):
+        try:
+            response = requests.get(DEVICE_REGISTRATION_URL)
+            response.raise_for_status()
+            registered_devices = response.json()
+
+            device_id = DEVICE_INFO["device_id"]
+            DEVICE_INFO["last_seen"] = time.time()
+
+            # Check if the device is already registered
+            existing_device = next((device for device in registered_devices if device.get("device_name") == device_id), None)
+
+            # Prepare payload in the expected format
+            payload = {
+                "device_name": device_id,
+                "device_info": DEVICE_INFO
+            }
+
+            if existing_device:
+                update_url = f"{DEVICE_REGISTRATION_URL}"
+                response = requests.put(update_url, json=payload, headers={"Content-Type": "application/json"})
+                if response.status_code == 200:
+                    print("Device updated successfully.")
+                else:
+                    print(f"Failed to update device, status: {response.status_code}")
+                    print("Response content:", response.text)
+            else:
+                print("Sending device registration payload:")
+                print(json.dumps(payload, indent=2))
+                response = requests.post(DEVICE_REGISTRATION_URL, json=payload, headers={"Content-Type": "application/json"})
+                if response.status_code == 201:
+                    print("Device registered successfully.")
+                else:
+                    print(f"Failed to register device, status: {response.status_code}")
+                    print("Response content:", response.text)
+
+        except Exception as e:
+            print("Error during device registration:", e)
 
 def fetch_service_config():
     response = requests.get(SERVICE_CATALOG_URL)
@@ -49,62 +95,37 @@ def fetch_service_config():
     
     return broker, topic
 
-BROKER, TOPIC = fetch_service_config()
-
-def simulate_temperature_sensor():
-    return round(random.uniform(15.0, 30.0), 2)
-
-def simulate_soil_moisture_sensor():
-    return round(random.uniform(30.0, 70.0), 2)
-
-def simulate_light_sensor():
-    return round(random.uniform(100.0, 1000.0), 2)
-
-def read_sensors():
-    return {
-        "temperature": simulate_temperature_sensor(),
-        "soil_moisture": simulate_soil_moisture_sensor(),
-        "light": simulate_light_sensor(),
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
-    }
-
-def send_sensor_data():
-    while True:
-        sensor_data = read_sensors()
-        sensor_data["device_name"] = DEVICE_INFO["device_name"]
-        payload = json.dumps(sensor_data)
-        try:
-            publish.single(TOPIC, payload, hostname=BROKER)
-            print("Published sensor data:", payload)
-        except Exception as e:
-            print("Failed to publish sensor data:", e)
-        time.sleep(PUBLISH_INTERVAL)
-
-def register_device():
-    try:
-        response = requests.get(DEVICE_REGISTRATION_URL)
-        response.raise_for_status()
-        registered_devices = response.json()
-
-        device_id = DEVICE_INFO["device_info"]["id"]
-        existing_device = next((device for device in registered_devices if device["device_info"]["id"] == device_id), None)
-
-        DEVICE_INFO["last_seen"] = time.time()
-
-        if existing_device:
-            update_url = f"{DEVICE_REGISTRATION_URL}/{device_id}"
-            response = requests.put(update_url, json=DEVICE_INFO, headers={"Content-Type": "application/json"})
-            print("Device updated successfully." if response.status_code == 200 else f"Failed to update device, status: {response.status_code}")
-        else:
-            response = requests.post(DEVICE_REGISTRATION_URL, json=DEVICE_INFO, headers={"Content-Type": "application/json"})
-            print("Device registered successfully." if response.status_code == 201 else f"Failed to register device, status: {response.status_code}")
-    except Exception as e:
-        print("Error during device registration:", e)
 
 def main():
     print("Starting device script")
-    register_device()
-    send_sensor_data()
+    my_device = DeviceInfo()
+    my_device.register_device()
+    my_device.send_sensor_data()
 
-if __name__ == "__main__":
+if __name__ == "__main__": 
+    config_path = sys.argv[1] if len(sys.argv) > 1 else "config.json"
+    if "config_file" in os.environ and os.environ["config_file"]:
+        config_path = os.environ["config_file"]
+    with open(config_path, "r") as config_file:
+        config = json.load(config_file)
+
+    # Device information (dynamic from config)
+    DEVICE_INFO = {
+        "device_name": config["device"]["device_name"],  
+        "device_id": config["device"]["device_info"]["device_id"],  
+        "type": config["device"]["device_info"]["type"],
+        "location": config["device"]["device_info"]["location"],
+        "status": config["device"]["device_info"]["status"],
+        "registration_date": time.strftime("%Y-%m-%d %H:%M:%S"), 
+        "thresholds": config["device"]["device_info"]["thresholds"],
+        "last_seen": time.time()
+    }
+
+    # URLs
+    SERVICE_CATALOG_URL = os.environ.get("service_catalog", config["device"]["service_catalog_url"])+"/ServiceCatalog"
+    DEVICE_REGISTRATION_URL = os.environ.get("service_catalog", config["device"]["device_registration_url"])+"/DeviceCatalog"
+    PUBLISH_INTERVAL = config.get("publish_interval", 2)
+
+    BROKER, TOPIC = fetch_service_config()
+
     main()
