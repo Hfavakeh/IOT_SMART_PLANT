@@ -1,6 +1,6 @@
 {
-  "service_catalog_url": "http://localhost:8080/ServiceCatalog",
-  "device_info_url": "http://localhost:8080/DeviceCatalog",
+  "service_catalog_url": "${service_catalog}",
+  "device_registration_url": "${service_catalog}",
   "service_info": {
   "service_name": "CONTROL_TOPIC"
   },
