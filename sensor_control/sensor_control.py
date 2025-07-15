@@ -2,6 +2,7 @@ import paho.mqtt.client as mqtt
 import json
 import requests
 from datetime import datetime
+import os
 
 def register_service():
     """Register this microservice with the Service and Device Registry."""
@@ -17,7 +18,6 @@ def register_service():
         print(f"Error registering service: {e}")
 
 def fetch_service_config():
-    
     response = requests.get(SERVICE_CATALOG_URL)
     response.raise_for_status()  # Raise an exception for non-200 responses.
     services = response.json()  # Expecting a list of service objects.
@@ -135,35 +135,39 @@ def publish_control_messages(actions):
         print(f"Published control message: {action}")
 
 if __name__ == "__main__":
- 
-    # === Load thermal comfort config for the home ===
- with open("home_environment_config.json", "r") as f:
-    CONFIG = json.load(f)
-
-
-# URLs for the Service Registry and Device Registration endpoints
-SERVICE_CATALOG_URL = CONFIG["service_catalog_url"]
-
-# Service and Device Registry settings
-SERVICE_INFO = CONFIG["service_info"]
-
-# Sensor thresholds
-# Device info endpoint (update as needed)
-DEVICE_INFO_URL = CONFIG["device_info_url"]
-
-# Retrieve the configuration from the service registry.
-BROKER, TOPIC , CONTROL_TOPIC = fetch_service_config()
-
-register_service()
-
-    # Initialize MQTT client
-client = mqtt.Client()
-client.on_connect = on_connect
-client.on_message = on_message
-
-    # Connect to the MQTT broker
-client.connect(BROKER)
-
-    # Start the MQTT loop
-client.loop_forever()
     
+        # === Load thermal comfort config for the home ===
+    with open("home_environment_config.json", "r") as f:
+        CONFIG = json.load(f)
+
+
+    # URLs for the Service Registry and Device Registration endpoints
+    SERVICE_CATALOG_URL = CONFIG["service_catalog_url"]
+    
+    SERVICE_CATALOG_URL = os.environ.get("service_catalog", CONFIG["service_catalog_url"])+"/ServiceCatalog"
+    DEVICE_REGISTRATION_URL = os.environ.get("service_catalog", CONFIG["device_registration_url"])+"/DeviceCatalog"
+    # Service and Device Registry settings
+    SERVICE_INFO = CONFIG["service_info"]
+
+    # Sensor thresholds
+    # Device info endpoint (update as needed)
+    # DEVICE_INFO_URL = CONFIG["device_info_url"]
+    DEVICE_INFO_URL=os.environ.get("service_catalog", CONFIG["device_registration_url"])+"/DeviceCatalog"
+
+    # Retrieve the configuration from the service registry.
+    BROKER, TOPIC , CONTROL_TOPIC = fetch_service_config()
+
+    register_service()
+
+        # Initialize MQTT client
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_message = on_message
+
+        # Connect to the MQTT broker
+    print(f"Connecting to MQTT broker at {BROKER}...")
+    client.connect(BROKER)
+    client.subscribe(TOPIC+"/#")  # Subscribe to all device topics
+        # Start the MQTT loop
+    client.loop_forever()
+        
