@@ -234,150 +234,8 @@ class DeviceCatalog():
         cherrypy.response.status = 404
         return "Device not found"
 
-class TelegramUsers():
-    exposed = True
 
-    def __init__(self):
-        pass
 
-    def GET(self, *uri, **params):
-        file_path = 'data.json'
-        if os.path.exists(file_path):
-            with open(file_path, 'r') as json_file:
-                data = json.load(json_file)
-            if 'telegram_users' not in data:
-                data['telegram_users'] = []
-                with open(file_path, 'w') as json_file:
-                    json.dump(data, json_file)
-            telegram_users = data.get('telegram_users', [])
-            chat_id = params.get('chat_id')
-            user_name = params.get('user_name')
-
-            if chat_id:
-                telegram_users = [user for user in telegram_users if user.get('chat_id') == chat_id]
-            if user_name:
-                telegram_users = [user for user in telegram_users if user.get('user_name') == user_name]
-
-            return json.dumps(telegram_users)
-        else:
-            cherrypy.response.status = 404
-            return "File not found"
-
-    def POST(self, *uri):
-        data_to_insert = cherrypy.request.body.read()
-        converted_data = json.loads(data_to_insert)
-        chat_id = converted_data.get('chat_id')
-        user_name = converted_data.get('user_name')
-        devices = converted_data.get('devices', [])
-        
-        if not chat_id or not user_name:
-            cherrypy.response.status = 400
-            return "Missing chat_id or user_name"
-
-        file_path = 'data.json'
-        if os.path.exists(file_path):
-            with open(file_path, 'r') as json_file:
-                data = json.load(json_file)
-        else:
-            data = {'telegram_users': []}
-
-        telegram_users = data.get('telegram_users', [])
-
-        for user in telegram_users:
-            if user.get('chat_id') == chat_id or user.get('user_name') == user_name:
-                cherrypy.response.status = 409
-                return "User already exists"
-
-        telegram_users.append({'chat_id': chat_id, 'user_name': user_name, 'devices': devices})
-        data['telegram_users'] = telegram_users
-
-        with open(file_path, 'w') as json_file:
-            json.dump(data, json_file)
-
-        cherrypy.response.status = 201
-        return "User added successfully"
-
-    def PUT(self, *uri):
-        data_to_update = cherrypy.request.body.read()
-        converted_data = json.loads(data_to_update)
-        chat_id = converted_data.get('chat_id')
-        user_name = converted_data.get('user_name')
-        devices = converted_data.get('devices', [])
-
-        if not chat_id or not user_name or not devices:
-            cherrypy.response.status = 400
-            return "Missing chat_id, user_name or devices"
-
-        file_path = 'data.json'
-        if os.path.exists(file_path):
-            with open(file_path, 'r') as json_file:
-                data = json.load(json_file)
-        else:
-            cherrypy.response.status = 404
-            return "File not found"
-
-        telegram_users = data.get('telegram_users', [])
-        user_found = False
-        for user in telegram_users:
-            if user.get('chat_id') == chat_id or user.get('user_name') == user_name:
-                for device in devices:
-                    device_id = device.get('device_id')
-                    device_name = device.get('device_name')
-                    if not device_id or not device_name:
-                        cherrypy.response.status = 400
-                        return "Missing device_id or device_name"
-                    if device not in user['devices']:
-                        user['devices'].append(device)
-                user_found = True
-                break
-
-        if not user_found:
-            cherrypy.response.status = 404
-            return "User not found"
-
-        data['telegram_users'] = telegram_users
-
-        with open(file_path, 'w') as json_file:
-            json.dump(data, json_file)
-
-        cherrypy.response.status = 200
-        return "Devices added to user successfully"
-    
-    def DELETE(self, *uri):
-        if len(uri) < 2:
-            cherrypy.response.status = 400
-            return "Missing chat_id or user_name"
-
-        chat_id = uri[0]
-        user_name = uri[1]
-
-        file_path = 'data.json'
-        if os.path.exists(file_path):
-            with open(file_path, 'r') as json_file:
-                data = json.load(json_file)
-        else:
-            cherrypy.response.status = 404
-            return "File not found"
-
-        telegram_users = data.get('telegram_users', [])
-        user_found = False
-        for user in telegram_users:
-            if user.get('chat_id') == chat_id or user.get('user_name') == user_name:
-                telegram_users.remove(user)
-                user_found = True
-                break
-
-        if not user_found:
-            cherrypy.response.status = 404
-            return "User not found"
-
-        data['telegram_users'] = telegram_users
-
-        with open(file_path, 'w') as json_file:
-            json.dump(data, json_file)
-
-        cherrypy.response.status = 200
-        return "User deleted successfully"
 
 def add_default_service():
     service_name = "broker_address"
@@ -388,7 +246,7 @@ def add_default_service():
         with open(file_path, 'r') as json_file:
             data = json.load(json_file)
     else:
-        data = {'services': [],'devices': [],'telegram_users': []}
+        data = {'services': [],'devices': []}
 
     services = data.get('services', [])
     for service in services:
@@ -451,7 +309,6 @@ if __name__ == '__main__':
         }
     }
 
-    cherrypy.tree.mount(TelegramUsers(), '/' + type(TelegramUsers()).__name__, conf)
     cherrypy.tree.mount(ServiceCatalog(), '/' + type(ServiceCatalog()).__name__, conf)
     cherrypy.tree.mount(DeviceCatalog(), '/' + type(DeviceCatalog()).__name__, conf)
     print("current server addresss: ",os.environ['IP_ADDRESS'],os.environ['IP_ADDRESS'])
