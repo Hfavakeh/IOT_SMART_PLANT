@@ -112,8 +112,22 @@ def predict():
 
             print("[DONE] Prediction completed successfully.")
             print(json.dumps(result, indent=2))
+            output_file = "prediction_results.txt"
+            header = f"{datetime.now().isoformat()} | {'='*20} | Device ID: {device_id}\n"
+            content = header + json.dumps(result, indent=2) + "\n\n"
 
+            if not os.path.exists(output_file):
+                with open(output_file, "w") as f:
+                    f.write(content)
+            else:
+                with open(output_file, "a") as f:
+                    f.write(content)
         except Exception as e:
+            error_log_file = "prediction_errors.log"
+            error_header = f"{datetime.now().isoformat()} | {'='*20} | Device ID: {device_id}\n"
+            error_content = error_header + f"{str(e)}\n\n"
+            with open(error_log_file, "a") as log_f:
+                log_f.write(error_content)
             print(f"[ERROR] {str(e)}")
 
 

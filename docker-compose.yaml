@@ -87,6 +87,7 @@ services:
     depends_on:
       - isp_registry
       - isp_mosquitto
+      - isp_thingspeak
 
   isp_telegram:
     build:

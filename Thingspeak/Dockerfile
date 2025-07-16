@@ -21,4 +21,4 @@ RUN apt-get update \
     && pip install --no-cache-dir --upgrade pip
 EXPOSE 8081
 
-CMD ["python","thinkspeak_adaptor.py"]
+CMD ["python","thingspeak_adaptor.py"]
