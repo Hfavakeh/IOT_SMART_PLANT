@@ -1,4 +1,4 @@
-version: '3.1'
+
 services:
 
   isp_mosquitto:
@@ -62,8 +62,6 @@ services:
   isp_thingspeak:
     build:
       context: ./thingspeak
-    ports:
-      - "8081:8081"
     restart: always
     environment:
       service_catalog: http://isp_registry:8080
@@ -87,14 +85,13 @@ services:
     depends_on:
       - isp_registry
       - isp_mosquitto
-      - isp_thingspeak
 
   isp_telegram:
     build:
       context: ./telegram
     restart: always
     environment:
-      TELEGRAM_BOT_TOKEN: 7827437398:AAEJlTJxckpNwV9CtzjPmrf5mAmh1RA81DM
+      TELEGRAM_BOT_TOKEN: 7663707657:AAH0kbjnSl_tMWw877jEPluYrTm2ULhfpGw
       wait_seconds: 3600
       thingspeak_adaptor_url: http://isp_thingspeak:8081
       service_catalog: http://isp_registry:8080
