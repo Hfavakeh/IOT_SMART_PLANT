@@ -1,7 +1,6 @@
 {
   "thingspeak_adaptor_url": "http://localhost:8081",
   "device_catalog_url": "http://localhost:8080/DeviceCatalog",
-  "device_name": "pi_1",
   "weeks": 2,
   "ALARMS_TOPIC": "plant_care/alarms",
   "broker_address": "localhost"

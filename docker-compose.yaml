@@ -91,7 +91,8 @@ services:
       context: ./telegram
     restart: always
     environment:
-      TELEGRAM_BOT_TOKEN: 7663707657:AAH0kbjnSl_tMWw877jEPluYrTm2ULhfpGw
+      #TELEGRAM_BOT_TOKEN: 7663707657:AAH0kbjnSl_tMWw877jEPluYrTm2ULhfpGw
+      TELEGRAM_BOT_TOKEN: 8222078805:AAH5uROMb-K9RGP9MU2FhLyx_co0q9T8FdQ
       wait_seconds: 3600
       thingspeak_adaptor_url: http://isp_thingspeak:8081
       service_catalog: http://isp_registry:8080
