@@ -1,6 +1,6 @@
 🌱 Smart Plant Care System
 
-An IoT-based plant monitoring and care system that uses Raspberry Pi, sensors, microservices, and ThingSpeak to automate plant care. The system collects real-time data (temperature, soil moisture, light), stores it in the cloud, applies threshold-based alerts, and integrates with Telegram Bot for user interaction.
+An IoT-based plant monitoring and care system that uses Raspberry Pi, sensors, microservices, and ThingSpeak to automate plant care. The system collects real-time data (temperature, soil moisture, light), stores it in the cloud, applies threshold-based alerts, and integrates with a Telegram Bot for user interaction.
 
 🚀 Features
 
@@ -35,3 +35,47 @@ Register plants with ThingSpeak Channel ID + API Key
 Display live sensor data
 
 Receive real-time alerts
+
+🛠️ Technologies
+
+Programming: Python
+
+Framework: CherryPy
+
+Communication: MQTT, REST APIs
+
+Cloud: ThingSpeak
+
+Database: JSON-based storage (for registry & thresholds)
+
+Machine Learning: Scikit-learn (linear regression for predictions)
+
+Containerization: Docker (multi-service setup)
+
+Messaging: Telegram Bot
+
+⚙️ Setup & Installation
+1. Clone the repo
+   https://github.com/Hfavakeh/IOT_SMART_PLANT
+2. Install dependencies
+   pip install -r requirements.txt
+3. Run with Docker
+   docker-compose up --build
+
+📊 Machine Learning Module
+
+Fetches 7 days of sensor data from ThingSpeak
+
+Predicts when the plant will need water
+
+Supports multi-sensor predictions (temperature, light, moisture)
+
+📱 Telegram Bot Commands
+
+/register <channel_id> <api_key> → Register a new plant
+
+/status → Show live plant status
+
+/alerts → Enable/disable alerts
+
+/predict → Get next watering prediction
