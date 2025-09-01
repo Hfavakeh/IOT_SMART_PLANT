@@ -55,11 +55,11 @@ Containerization: Docker (multi-service setup)
 Messaging: Telegram Bot
 
 ⚙️ Setup & Installation
-1. Clone the repo
+1. Clone the repo: 
    https://github.com/Hfavakeh/IOT_SMART_PLANT
-2. Install dependencies
+2. Install dependencies: 
    pip install -r requirements.txt
-3. Run with Docker
+3. Run with Docker: 
    docker-compose up --build
 
 📊 Machine Learning Module
